@@ -1,27 +1,33 @@
-# Reel Good — Movie Roulette
+﻿# Reel Good — Movie Roulette & Binge Generator
 
-A responsive movie discovery app built with React, Vite, JavaScript, and CSS. Pick a mood, spin the reels, and get a movie pick with its poster, rating, runtime, overview, trailer, and a link to find where it’s streaming.
+A React and Vite movie discovery app. Choose a mood to discover a film without creating an account. Sign in to save movies to your Binge List.
 
-## Get started
+## Setup
 
-1. Install Node.js (20.19+ or 22.12+) and npm.
-2. Create a free account at [TMDB](https://www.themoviedb.org/) and request an API Read Access Token in your account settings.
-3. Copy `.env.example` to `.env` and add your token:
+1. Install Node.js 20.19+ or 22.12+ and run `npm install`.
+2. Copy `.env.example` to `.env` and fill in the variables:
 
    ```env
    VITE_TMDB_ACCESS_TOKEN=your_tmdb_read_access_token
+   VITE_SUPABASE_URL=https://your-project.supabase.co
+   VITE_SUPABASE_ANON_KEY=your_supabase_publishable_or_anon_key
    ```
 
-   This is a Vite client-side app, so the token is included in browser requests. Use a restricted TMDB token and do not commit `.env`.
+   Supabase values are optional for discovery, but required for accounts and saved movies. Only use the Supabase publishable/anon key in this client app. Never put a service-role or secret key in a `VITE_` variable or commit credentials.
 
-4. Install dependencies and start the development server:
+3. In the Supabase Dashboard, open **SQL Editor → New query**, paste the complete contents of [`supabase/migrations/202610130001_movie_lists.sql`](supabase/migrations/202610130001_movie_lists.sql), and click **Run**. This creates `profiles` and `saved_movies`, the signup profile trigger, indexes, and row-level security policies. Each policy scopes records to `auth.uid()`; saved movie IDs are unique per user.
+4. In Supabase **Authentication → URL Configuration**, set your local site URL (usually `http://localhost:5173`) and include it in allowed redirect URLs. Set email confirmation preferences as desired.
+5. Restart the dev server after changing `.env`, then run `npm run dev`.
 
-   ```sh
-   npm install
-   npm run dev
-   ```
+## SQL Editor instructions
 
-   Restart the dev server after changing `.env`.
+The migration file is the complete SQL script. In the dashboard select the project, open **SQL Editor**, choose **New query**, paste the full file, and run it. A successful run adds:
+
+- `public.profiles` keyed to `auth.users.id` (UUID), with email and created/updated timestamps; a trigger creates/updates profiles when auth users are created or change email.
+- `public.saved_movies` with UUID row ID, user UUID, TMDB movie ID, title, poster path, watched state, and created/updated timestamps.
+- RLS policies for select/insert/update/delete that require the authenticated user ID to match the row owner. The unique `(user_id, tmdb_movie_id)` constraint prevents duplicate saves.
+
+No service-role key is needed. The browser uses the publishable/anon key; RLS is the data access boundary.
 
 ## Scripts
 
@@ -29,5 +35,3 @@ A responsive movie discovery app built with React, Vite, JavaScript, and CSS. Pi
 - `npm run build` — create a production build in `dist/`
 - `npm run preview` — preview the production build
 - `npm run lint` — run ESLint
-
-Movie results come from TMDB’s discover endpoint, sorted by popularity and chosen at random from a randomly selected page (pages 1–10). Mood filters set genres, minimum ratings, and minimum vote counts. The “Where to watch” link opens a search because availability depends on location.
