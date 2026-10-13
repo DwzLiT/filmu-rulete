@@ -6,10 +6,9 @@ function tmdbApiDev() {
   return {
     name: 'tmdb-api-dev',
     configureServer(server) {
-      const env = loadEnv(server.config.mode, process.cwd(), '')
-      process.env.TMDB_ACCESS_TOKEN ??= env.TMDB_ACCESS_TOKEN
-
       server.middlewares.use('/api/tmdb', async (req, res) => {
+        // Read .env on every request so edits apply without a restart.
+        const { TMDB_ACCESS_TOKEN } = loadEnv(server.config.mode, process.cwd(), '')
         const { default: handler } = await server.ssrLoadModule('/api/tmdb.js')
         const url = new URL(req.url, 'http://localhost')
         req.query = Object.fromEntries(url.searchParams)
@@ -22,7 +21,7 @@ function tmdbApiDev() {
           res.end(JSON.stringify(body))
           return res
         }
-        await handler(req, res)
+        await handler(req, res, TMDB_ACCESS_TOKEN)
       })
     },
   }
