@@ -67,6 +67,9 @@ function App() {
     setAuthError('')
     setAuthStatus('loading')
     try {
+      if (!supabase?.auth || !supabase.auth.storage) {
+        throw new Error('Supabase auth storage is unavailable. Check the Supabase URL/key and restart the dev server.')
+      }
       const action = authMode === 'signup' ? supabase.auth.signUp : supabase.auth.signInWithPassword
       const { data, error: requestError } = await action({ email: authEmail.trim(), password: authPassword })
       if (requestError) { setAuthError(requestError.message); return }

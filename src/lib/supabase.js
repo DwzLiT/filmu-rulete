@@ -15,6 +15,7 @@ export function getSupabaseClient() {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        storage: globalThis.localStorage,
       },
     })
     return client
