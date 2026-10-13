@@ -67,11 +67,13 @@ function App() {
     setAuthError('')
     setAuthStatus('loading')
     try {
-      if (!supabase?.auth || !supabase.auth.storage) {
-        throw new Error('Supabase auth storage is unavailable. Check the Supabase URL/key and restart the dev server.')
+      if (!supabase?.auth) {
+        throw new Error('Authentication is unavailable. Check the Supabase URL and anon key.')
       }
-      const action = authMode === 'signup' ? supabase.auth.signUp : supabase.auth.signInWithPassword
-      const { data, error: requestError } = await action({ email: authEmail.trim(), password: authPassword })
+      const credentials = { email: authEmail.trim(), password: authPassword }
+      const { data, error: requestError } = authMode === 'signup'
+        ? await supabase.auth.signUp(credentials)
+        : await supabase.auth.signInWithPassword(credentials)
       if (requestError) { setAuthError(requestError.message); return }
       if (authMode === 'signup' && !data.session) setAuthError('Check your email for a confirmation link, then log in.')
       setAuthPassword('')
