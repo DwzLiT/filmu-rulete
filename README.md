@@ -13,6 +13,7 @@ A React and Vite movie discovery app. Choose a mood to discover a film without c
    VITE_SUPABASE_ANON_KEY=your_supabase_publishable_or_anon_key
    ```
 
+
    Supabase values are optional for discovery, but required for accounts and saved movies. Only use the Supabase publishable/anon key in this client app. Never put a service-role or secret key in a `VITE_` variable or commit credentials.
 
 3. In the Supabase Dashboard, open **SQL Editor → New query**, paste the complete contents of [`supabase/migrations/202610130001_movie_lists.sql`](supabase/migrations/202610130001_movie_lists.sql), and click **Run**. This creates `profiles` and `saved_movies`, the signup profile trigger, indexes, and row-level security policies. Each policy scopes records to `auth.uid()`; saved movie IDs are unique per user.
