@@ -36,6 +36,10 @@ function App() {
       if (sessionError) setAuthError(sessionError.message)
       setSession(data?.session ?? null)
       setSessionLoading(false)
+    }).catch((sessionError) => {
+      if (!alive) return
+      setAuthError(sessionError.message || 'Could not restore your session.')
+      setSessionLoading(false)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession)
