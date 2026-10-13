@@ -19,7 +19,7 @@ A React and Vite movie discovery app. Choose a mood to discover a film without c
 
 3. In the Supabase Dashboard, open **SQL Editor → New query**, paste the complete contents of [`supabase/migrations/202610130001_movie_lists.sql`](supabase/migrations/202610130001_movie_lists.sql), and click **Run**. This creates `profiles` and `saved_movies`, the signup profile trigger, indexes, and row-level security policies. Each policy scopes records to `auth.uid()`; saved movie IDs are unique per user.
 4. In Supabase **Authentication → URL Configuration**, set your local site URL (usually `http://localhost:5173`) and include it in allowed redirect URLs. Set email confirmation preferences as desired.
-5. Run the app locally with the [Vercel CLI](https://vercel.com/docs/cli) (`npm i -g vercel`), then `vercel dev`. Plain `npm run dev` does not serve the `/api` function, so movie discovery will fail there. Restart after changing `.env`.
+5. Run `npm run dev`. The Vite config runs the `/api/tmdb` function locally, so no Vercel CLI is needed (`vercel dev` also works). Restart after changing `.env`.
 
 ## Deploying to Vercel
 
@@ -37,8 +37,7 @@ No service-role key is needed. The browser uses the publishable/anon key; RLS is
 
 ## Scripts
 
-- `vercel dev` — start the app and the `/api` function locally
-- `npm run dev` — start the Vite dev server only (no `/api`, so TMDB requests fail)
+- `npm run dev` — start the local development server (including the `/api/tmdb` function)
 - `npm run build` — create a production build in `dist/`
 - `npm run preview` — preview the production build
 - `npm run lint` — run ESLint

@@ -9,6 +9,9 @@ async function tmdb(path, params) {
     if (body?.error) throw new Error(body.error)
     throw new Error(`TMDB request failed (${response.status}). Please try again.`)
   }
+  if (!response.headers.get('content-type')?.includes('application/json')) {
+    throw new Error('The movie API is not running. Start the app with `npm run dev` or `vercel dev`.')
+  }
   return response.json()
 }
 
