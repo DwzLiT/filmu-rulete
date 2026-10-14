@@ -15,7 +15,7 @@ async function tmdb(path, params) {
   return response.json()
 }
 
-export async function discoverMovie(mood) {
+export async function discoverMovies(mood, count = 3) {
   const params = new URLSearchParams({
     language: 'en-US',
     sort_by: 'popularity.desc',
@@ -29,7 +29,12 @@ export async function discoverMovie(mood) {
   const data = await tmdb(`discover/${type}`, params)
   const candidates = (data.results ?? []).filter((item) => item.title || item.name)
   if (!candidates.length) throw new Error('Nothing matched this mood on that page. Spin again for another batch.')
-  return candidates[Math.floor(Math.random() * candidates.length)]
+  // Shuffle, then take the first few so the picks are all different.
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[candidates[i], candidates[j]] = [candidates[j], candidates[i]]
+  }
+  return candidates.slice(0, count)
 }
 
 export async function getMovieDetails(id, type = 'movie') {
