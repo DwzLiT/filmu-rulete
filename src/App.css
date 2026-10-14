@@ -21,3 +21,4 @@
 @media(max-width:650px){.sound-toggle{width:40px;height:40px}.wheel{width:240px;height:240px}}
 a.save-action{text-decoration:none;display:inline-flex;align-items:center}
 .undo-toast{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0 0;padding:10px 12px;border:1px solid #ffffff24;border-radius:6px;background:#1b1b18;color:#c9c6be;font-size:11px}.undo-toast strong{color:#eeeae3}.undo-toast button{margin-left:auto;border:1px solid #d1ff64;background:none;color:#d1ff64;border-radius:5px;padding:5px 10px;font-size:10px;cursor:pointer}.undo-toast button:hover{background:#d1ff64;color:#171912}
+.saved-actions button.watched-on{background:#d1ff64;border-color:#d1ff64;color:#171912;font-weight:600}.saved-actions button.watched-on:hover{background:#c2f04f;color:#171912}
