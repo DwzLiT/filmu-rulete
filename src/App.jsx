@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { discoverMovies, getMovieDetails, getTrailerUrl, getWatchUrl } from './lib/tmdb.js'
 import { isSupabaseConfigured, listSavedMovies, removeSavedMovie, saveMovie, setMovieWatched, supabase } from './lib/supabase.js'
+import { playSpinSound } from './lib/spinSound.js'
+import { createSpinPlan, spinTicks } from './lib/spinPlan.js'
+import RouletteWheel from './RouletteWheel.jsx'
 import './App.css'
 
 const moods = [
@@ -20,6 +23,13 @@ const howItWorksSteps = [
   { title: 'Press play (or save it)', text: 'Watch a trailer, find where to stream it, or log in and save picks to your Binge List for later.' },
   { title: 'Not feeling it?', text: 'Spin again. There is always another batch, and no wrong answers on movie night.' },
 ]
+
+const accents = { violet: '#b9a6ff', lime: '#d1ff64', blue: '#8bc8ff', orange: '#ffad77', red: '#ff7b7b', gold: '#ffd166', teal: '#6ee7d0', pink: '#ff9bd2' }
+
+// Browser storage can be blocked (private windows, strict settings), so the preference is best-effort.
+function readSoundPreference() {
+  try { return localStorage.getItem('reelgood:sound') !== 'off' } catch { return true }
+}
 
 function useHashPage() {
   const [hash, setHash] = useState(() => window.location.hash)
@@ -56,6 +66,9 @@ function App() {
   const [savedStatus, setSavedStatus] = useState('idle')
   const [savedError, setSavedError] = useState('')
   const [saveStatuses, setSaveStatuses] = useState({})
+  const [spinPlan, setSpinPlan] = useState(null)
+  const [soundOn, setSoundOn] = useState(readSoundPreference)
+  const stopSound = useRef(() => {})
   const [savedNotice, setSavedNotice] = useState('')
 
   useEffect(() => {
@@ -140,21 +153,36 @@ function App() {
       setSavedMovies(await listSavedMovies(session.user.id))
     } catch (err) { setSavedError(err.message || 'Could not update your Binge List.') }
   }
+  const toggleSound = () => {
+    const next = !soundOn
+    setSoundOn(next)
+    if (!next) stopSound.current()
+    try { localStorage.setItem('reelgood:sound', next ? 'on' : 'off') } catch { /* preference just won't persist */ }
+  }
+
   const spin = async () => {
     if (!mood) return
+    const plan = createSpinPlan()
+    stopSound.current()
+    // Started here, inside the click, because browsers block audio that isn't triggered by the user.
+    stopSound.current = soundOn ? playSpinSound(spinTicks(plan), plan.ballTime / 1000) : () => {}
+    setSpinPlan(plan)
     setStatus('loading')
     setError('')
+    setMovies([])
+    setSaveStatuses({})
+    setSavedNotice('')
     try {
-      const picks = await discoverMovies(mood)
-      setMovies([])
-      setSaveStatuses({})
-      setSavedNotice('')
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-      const details = await Promise.all(picks.map((pick) => getMovieDetails(pick.id, mood.type)))
+      const [details] = await Promise.all([
+        discoverMovies(mood).then((picks) => Promise.all(picks.map((pick) => getMovieDetails(pick.id, mood.type)))),
+        // Let the wheel finish and the ball settle before revealing the picks.
+        new Promise((resolve) => setTimeout(resolve, plan.duration + 400)),
+      ])
       setMovies(details)
       setResultMood(mood)
       setStatus('ready')
     } catch (err) {
+      stopSound.current()
       setError(err.message)
       setStatus('error')
     }
@@ -185,9 +213,9 @@ function App() {
             </button>)}
           </div>
 
-          <div className="spin-row"><span className="spin-caption"><span className="sparkle">✦</span> {mood ? 'Three picks. Zero decision fatigue.' : 'Pick a mood to start.'}</span><button className="spin-button" type="button" onClick={spin} disabled={!mood || status === 'loading'}><span>{status === 'loading' ? 'Finding your films' : movies.length ? 'Spin again' : 'Spin the wheel'}</span><span className={status === 'loading' ? 'button-icon spinning' : 'button-icon'}>✳</span></button></div>
+          <div className="spin-row"><span className="spin-caption"><span className="sparkle">✦</span> {mood ? 'Three picks. Zero decision fatigue.' : 'Pick a mood to start.'}</span><div className="spin-controls"><button className="sound-toggle" type="button" onClick={toggleSound} aria-pressed={soundOn} aria-label="Spin sound" title={soundOn ? 'Sound on' : 'Sound off'}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z" />{soundOn ? <path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" /> : <path d="M17 9l5 6M22 9l-5 6" />}</svg></button><button className="spin-button" type="button" onClick={spin} disabled={!mood || status === 'loading'}><span>{status === 'loading' ? 'Finding your films' : movies.length ? 'Spin again' : 'Spin the wheel'}</span><span className={status === 'loading' ? 'button-icon spinning' : 'button-icon'}>✳</span></button></div></div>
 
-          {status === 'loading' && <div className="roulette" role="status"><div className="loader-orbit"><span>✳</span></div><strong>Shuffling the reels…</strong><small>Finding your kind of movie magic</small></div>}
+          {status === 'loading' && spinPlan && <RouletteWheel key={spinPlan.id} plan={spinPlan} accent={accents[mood?.color] ?? accents.lime} label="Shuffling the reels…" />}
           {status === 'error' && <div className="notice error-notice" role="alert"><span>!</span><div><strong>We hit a snag.</strong><p>{error}</p></div><button type="button" onClick={spin}>Try again</button></div>}
           {status === 'ready' && movies.map((movie, index) => {
             const saveStatus = saveStatuses[movie.id]
