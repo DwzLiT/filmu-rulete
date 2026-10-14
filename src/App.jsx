@@ -14,7 +14,32 @@ const moods = [
   { id: 'toon', title: 'Cartoons Are for Grown-ups', icon: '✿', description: 'Drawn to perfection', genre: '16', rating: 7, color: 'pink' },
 ]
 
+const howItWorksSteps = [
+  { title: 'Pick your mood', text: 'Choose one of eight vibes, from mind-bending sci-fi to just one more episode. The room changes to match.' },
+  { title: 'Spin the wheel', text: 'We dig through popular, well-rated titles on TMDB that fit your mood and pull out three at random.' },
+  { title: 'Press play (or save it)', text: 'Watch a trailer, find where to stream it, or log in and save picks to your Binge List for later.' },
+  { title: 'Not feeling it?', text: 'Spin again. There is always another batch, and no wrong answers on movie night.' },
+]
+
+function useHashPage() {
+  const [hash, setHash] = useState(() => window.location.hash)
+  useEffect(() => {
+    const onHashChange = () => setHash(window.location.hash)
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+  const page = hash === '#how-it-works' ? 'how-it-works' : 'home'
+  useEffect(() => {
+    // The browser tries to scroll before React swaps pages, so jump to the target once it exists.
+    const target = page === 'home' && hash && hash !== '#home' ? document.querySelector(hash) : null
+    if (target) target.scrollIntoView()
+    else window.scrollTo(0, 0)
+  }, [page, hash])
+  return page
+}
+
 function App() {
+  const page = useHashPage()
   const [mood, setMood] = useState(null)
   const [resultMood, setResultMood] = useState(null)
   const [movies, setMovies] = useState([])
@@ -140,12 +165,12 @@ function App() {
       <div className="mood-backdrop" aria-hidden="true">{moods.map((item) => <div key={item.id} className={`backdrop-${item.id} ${mood?.id === item.id ? 'active' : ''}`} />)}</div>
       <header className="topbar">
         <a className="brand" href="#home" aria-label="Reel Good home"><span className="brand-mark">r</span><span>reel<span className="brand-light">good</span></span></a>
-        <nav aria-label="Main navigation"><a className="nav-active" href="#home">Discover</a><a href="#how-it-works">How it works</a></nav>
+        <nav aria-label="Main navigation"><a className={page === 'home' ? 'nav-active' : ''} href="#home" aria-current={page === 'home' ? 'page' : undefined}>Discover</a><a className={page === 'how-it-works' ? 'nav-active' : ''} href="#how-it-works" aria-current={page === 'how-it-works' ? 'page' : undefined}>How it works</a></nav>
         {session?.user ? <div className="account-actions"><span>{session.user.email}</span><button type="button" onClick={logout}>Log out</button></div> : <a className="top-link" href="#account">Log in</a>}
-        <a className="top-link" href="https://www.themoviedb.org/" target="_blank" rel="noreferrer">Powered by TMDB <span>↗</span></a>
+        <a className="top-link tmdb-link" href="https://www.themoviedb.org/" aria-label="Powered by TMDB" target="_blank" rel="noreferrer">Powered by TMDB <span>↗</span></a>
       </header>
 
-      <main id="home">
+      {page === 'how-it-works' ? <HowItWorks /> : <main id="home">
         <section className="hero">
           <div className="eyebrow"><span className="eyebrow-line" />YOUR NEXT FAVORITE IS OUT THERE</div>
           <h1>Less scrolling.<br /><span>More watching.</span></h1>
@@ -185,11 +210,23 @@ function App() {
           {savedError && <p className="inline-error" role="alert">{savedError}</p>}
         </section>
 
-        <section className="footnote" id="how-it-works"><div className="foot-icon">✦</div><div><strong>A little movie-night magic</strong><p>We search thousands of films, then leave the final pick to chance.</p></div><span className="foot-count">01 <i /> 04</span></section>
-      </main>
+        <section className="footnote"><div className="foot-icon">✦</div><div><strong>A little movie-night magic</strong><p>We search thousands of films, then leave the final pick to chance.</p></div><span className="foot-count">01 <i /> 04</span></section>
+      </main>}
       <footer><span>Made for the “what should we watch?” moment.</span><span>© 2026 Reel Good</span></footer>
     </div>
   )
+}
+
+function HowItWorks() {
+  return <main className="how-page" id="how-it-works">
+    <section className="hero">
+      <div className="eyebrow"><span className="eyebrow-line" />HOW IT WORKS</div>
+      <h1>Three clicks.<br /><span>Zero arguments.</span></h1>
+      <p>Reel Good takes the endless scrolling out of movie night.</p>
+    </section>
+    <ol className="how-steps">{howItWorksSteps.map((step, index) => <li key={step.title}><span className="step">{String(index + 1).padStart(2, '0')}</span><div><h2>{step.title}</h2><p>{step.text}</p></div></li>)}</ol>
+    <div className="how-actions"><a className="spin-button" href="#home"><span>Got it, spin me right round!</span><span className="button-icon">✳</span></a></div>
+  </main>
 }
 
 function MovieCard({ movie, mood, pick, total, onSave, saveLabel, saveDisabled }) {
