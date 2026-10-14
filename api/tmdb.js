@@ -2,7 +2,7 @@
 const API_ROOT = 'https://api.themoviedb.org/3'
 
 // Only the endpoints the app actually uses, so the token can't be used for anything else.
-const ALLOWED_PATHS = [/^discover\/movie$/, /^movie\/\d+$/]
+const ALLOWED_PATHS = [/^discover\/(movie|tv)$/, /^(movie|tv)\/\d+$/]
 
 // Vercel calls this with (req, res); the Vite dev server passes the token from .env explicitly.
 export default async function handler(req, res, rawToken = process.env.TMDB_ACCESS_TOKEN) {

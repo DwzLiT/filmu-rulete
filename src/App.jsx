@@ -8,6 +8,10 @@ const moods = [
   { id: 'bad', title: "So Bad It's Good", icon: '☻', description: 'Beautifully terrible', rating: 4.5, votes: 100, color: 'lime' },
   { id: 'cry', title: 'Crying on the Couch', icon: '☂', description: 'Feel all the feelings', genre: '18,10749', rating: 7, color: 'blue' },
   { id: 'rush', title: 'Adrenaline Rush', icon: '↗', description: 'No time to blink', genre: '28,53', rating: 6.5, color: 'orange' },
+  { id: 'scream', title: 'Sleep With the Lights On', icon: '☠', description: 'Screams guaranteed', genre: '27', rating: 6.5, color: 'red' },
+  { id: 'binge', title: 'Just One More Episode', icon: '▣', description: 'Goodbye, weekend', type: 'tv', rating: 7.5, votes: 200, color: 'gold' },
+  { id: 'doc', title: 'Wait, That Really Happened?', icon: '◉', description: 'Truth is stranger', genre: '99', rating: 7, color: 'teal' },
+  { id: 'toon', title: 'Cartoons Are for Grown-ups', icon: '✿', description: 'Drawn to perfection', genre: '16', rating: 7, color: 'pink' },
 ]
 
 function App() {
@@ -116,7 +120,7 @@ function App() {
       const pick = await discoverMovie(mood)
       setMovie(null)
       await new Promise((resolve) => setTimeout(resolve, 1500))
-      const details = await getMovieDetails(pick.id)
+      const details = await getMovieDetails(pick.id, mood.type)
       setMovie(details)
       setStatus('ready')
     } catch (err) {
@@ -183,7 +187,7 @@ function MovieCard({ movie, mood, onSave, saveLabel, saveDisabled }) {
   const year = movie.release_date?.slice(0, 4)
   return <article className="movie-result" aria-live="polite"><div className="result-label"><span>✦</span> TONIGHT’S PICK <i /> <small>{mood.title}</small></div><div className="movie-card">
     <div className="poster-wrap">{poster ? <img src={poster} alt={`${movie.title} poster`} /> : <div className="poster-missing"><span>✳</span><small>POSTER UNAVAILABLE</small></div>}<span className="poster-stamp">YOUR<br />PICK</span></div>
-    <div className="movie-info"><div className="movie-kicker">{year || 'A GREAT PICK'} <i /> FEATURE FILM</div><h3>{movie.title || 'Untitled movie'}</h3><div className="movie-meta"><span className="rating"><b>★</b> {movie.vote_average ? movie.vote_average.toFixed(1) : '—'} <small>/ 10</small></span><i /> <span>{movie.runtime ? `${movie.runtime} min` : 'Runtime unavailable'}</span></div><p className="overview">{movie.overview || 'No overview is available for this film. The perfect excuse to go in completely blind.'}</p><div className="movie-actions">{getTrailerUrl(movie) ? <a className="primary-action" href={getTrailerUrl(movie)} target="_blank" rel="noreferrer"><span>▶</span> Watch trailer</a> : <span className="unavailable-action">Trailer unavailable</span>}<a className="secondary-action" href={getWatchUrl(movie)} target="_blank" rel="noreferrer">Where to watch <span>↗</span></a><button className="save-action" type="button" onClick={onSave} disabled={saveDisabled}>{saveLabel}</button></div></div>
+    <div className="movie-info"><div className="movie-kicker">{year || 'A GREAT PICK'} <i /> {movie.media_type === 'tv' ? 'TV SERIES' : 'FEATURE FILM'}</div><h3>{movie.title || 'Untitled movie'}</h3><div className="movie-meta"><span className="rating"><b>★</b> {movie.vote_average ? movie.vote_average.toFixed(1) : '—'} <small>/ 10</small></span><i /> <span>{movie.runtime ? `${movie.runtime} min${movie.media_type === 'tv' ? ' / episode' : ''}` : 'Runtime unavailable'}</span></div><p className="overview">{movie.overview || 'No overview is available for this film. The perfect excuse to go in completely blind.'}</p><div className="movie-actions">{getTrailerUrl(movie) ? <a className="primary-action" href={getTrailerUrl(movie)} target="_blank" rel="noreferrer"><span>▶</span> Watch trailer</a> : <span className="unavailable-action">Trailer unavailable</span>}<a className="secondary-action" href={getWatchUrl(movie)} target="_blank" rel="noreferrer">Where to watch <span>↗</span></a><button className="save-action" type="button" onClick={onSave} disabled={saveDisabled}>{saveLabel}</button></div></div>
   </div></article>
 }
 

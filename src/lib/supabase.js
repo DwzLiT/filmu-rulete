@@ -30,6 +30,7 @@ export async function saveMovie(userId, movie) {
   const { data, error } = await getSupabaseClient().from('saved_movies').insert({
       user_id: userId,
       tmdb_movie_id: movie.id,
+      media_type: movie.media_type === 'tv' ? 'tv' : 'movie',
       title: movie.title || 'Untitled movie',
       poster_path: movie.poster_path || null,
     }).select('id').maybeSingle()
@@ -41,7 +42,7 @@ export async function saveMovie(userId, movie) {
 export async function listSavedMovies(userId) {
   const { data, error } = await getSupabaseClient()
     .from('saved_movies')
-    .select('id, tmdb_movie_id, title, poster_path, watched, created_at, updated_at')
+    .select('id, tmdb_movie_id, media_type, title, poster_path, watched, created_at, updated_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
   if (error) throw error

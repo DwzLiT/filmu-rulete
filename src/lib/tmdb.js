@@ -25,14 +25,18 @@ export async function discoverMovie(mood) {
     'vote_count.gte': String(mood.votes ?? 50),
   })
   if (mood.genre) params.set('with_genres', mood.genre)
-  const data = await tmdb('discover/movie', params)
-  const candidates = (data.results ?? []).filter((item) => item.title)
-  if (!candidates.length) throw new Error('No movies matched this mood on that page. Spin again for another batch.')
+  const type = mood.type ?? 'movie'
+  const data = await tmdb(`discover/${type}`, params)
+  const candidates = (data.results ?? []).filter((item) => item.title || item.name)
+  if (!candidates.length) throw new Error('Nothing matched this mood on that page. Spin again for another batch.')
   return candidates[Math.floor(Math.random() * candidates.length)]
 }
 
-export async function getMovieDetails(id) {
-  return tmdb(`movie/${id}`, { language: 'en-US', append_to_response: 'videos' })
+export async function getMovieDetails(id, type = 'movie') {
+  const details = await tmdb(`${type}/${id}`, { language: 'en-US', append_to_response: 'videos' })
+  if (type !== 'tv') return details
+  // TV shows use different field names; map them onto the movie shape the UI expects.
+  return { ...details, media_type: 'tv', title: details.name, release_date: details.first_air_date, runtime: details.episode_run_time?.[0] ?? details.last_episode_to_air?.runtime }
 }
 
 export function getTrailerUrl(movie) {
