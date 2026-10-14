@@ -58,3 +58,12 @@ export async function removeSavedMovie(id) {
   const { error } = await getSupabaseClient().from('saved_movies').delete().eq('id', id)
   if (error) throw error
 }
+
+// Undo for a removal: re-insert the row exactly as it was, so it keeps its place and watched state.
+export async function restoreSavedMovie(userId, row) {
+  const { id, tmdb_movie_id, media_type, title, poster_path, watched, created_at } = row
+  const { error } = await getSupabaseClient().from('saved_movies')
+    .insert({ id, user_id: userId, tmdb_movie_id, media_type, title, poster_path, watched, created_at })
+  if (error?.code === '23505') return
+  if (error) throw error
+}

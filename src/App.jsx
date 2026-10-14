@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { discoverMovies, getMovieDetails, getTrailerUrl, getWatchUrl } from './lib/tmdb.js'
-import { isSupabaseConfigured, listSavedMovies, removeSavedMovie, saveMovie, setMovieWatched, supabase } from './lib/supabase.js'
+import { isSupabaseConfigured, listSavedMovies, removeSavedMovie, restoreSavedMovie, saveMovie, setMovieWatched, supabase } from './lib/supabase.js'
 import { playSpinSound } from './lib/spinSound.js'
 import { createSpinPlan, spinTicks } from './lib/spinPlan.js'
 import RouletteWheel from './RouletteWheel.jsx'
@@ -70,6 +70,8 @@ function App() {
   const [soundOn, setSoundOn] = useState(readSoundPreference)
   const stopSound = useRef(() => {})
   const [savedNotice, setSavedNotice] = useState('')
+  const [removedRow, setRemovedRow] = useState(null)
+  const undoTimer = useRef(0)
 
   useEffect(() => {
     if (!supabase) return undefined
@@ -93,7 +95,7 @@ function App() {
 
   useEffect(() => {
     if (!session?.user) {
-      queueMicrotask(() => { setSavedMovies([]); setSavedStatus('idle') })
+      queueMicrotask(() => { setSavedMovies([]); setSavedStatus('idle'); setRemovedRow(null) })
       return undefined
     }
     let alive = true
@@ -151,7 +153,23 @@ function App() {
       if (action === 'remove') await removeSavedMovie(row.id)
       else await setMovieWatched(row.id, !row.watched)
       setSavedMovies(await listSavedMovies(session.user.id))
+      if (action === 'remove') {
+        clearTimeout(undoTimer.current)
+        setRemovedRow(row)
+        undoTimer.current = setTimeout(() => setRemovedRow(null), 6000)
+      }
     } catch (err) { setSavedError(err.message || 'Could not update your Binge List.') }
+  }
+
+  const undoRemove = async () => {
+    const row = removedRow
+    clearTimeout(undoTimer.current)
+    setRemovedRow(null)
+    setSavedError('')
+    try {
+      await restoreSavedMovie(session.user.id, row)
+      setSavedMovies(await listSavedMovies(session.user.id))
+    } catch (err) { setSavedError(err.message || `Could not restore ${row.title}.`) }
   }
   const toggleSound = () => {
     const next = !soundOn
@@ -219,7 +237,7 @@ function App() {
           {status === 'error' && <div className="notice error-notice" role="alert"><span>!</span><div><strong>We hit a snag.</strong><p>{error}</p></div><button type="button" onClick={spin}>Try again</button></div>}
           {status === 'ready' && movies.map((movie, index) => {
             const saveStatus = saveStatuses[movie.id]
-            return <MovieCard key={movie.id} movie={movie} mood={resultMood} pick={index + 1} total={movies.length} onSave={() => addMovie(movie)} saveLabel={saveStatus === "loading" ? "Saving…" : saveStatus === "saved" ? "Saved to Binge List" : "Save to Binge List"} saveDisabled={!session || saveStatus === "loading" || saveStatus === "saved"} />
+            return <MovieCard key={movie.id} movie={movie} mood={resultMood} pick={index + 1} total={movies.length} onSave={() => addMovie(movie)} loginToSave={isSupabaseConfigured && !session} saveLabel={saveStatus === "loading" ? "Saving…" : saveStatus === "saved" ? "Saved to Binge List" : "Save to Binge List"} saveDisabled={!session || saveStatus === "loading" || saveStatus === "saved"} />
           })}
           {savedNotice && <p className="save-notice" role="status">{savedNotice}</p>}
         </section>
@@ -234,7 +252,8 @@ function App() {
         </section>
         <section className="binge-panel" id="binge-list" aria-labelledby="binge-title">
           <div className="section-heading"><div><span className="step">03</span><h2 id="binge-title">Binge List</h2></div><span className="section-note">Your saved movie night queue</span></div>
-          {!session?.user ? <p className="account-hint">Log in to save, view, and manage your movies.</p> : savedStatus === 'loading' ? <p className="account-hint" role="status">Loading your Binge List…</p> : savedStatus === 'error' ? <p className="inline-error" role="alert">{savedError}</p> : savedMovies.length === 0 ? <p className="account-hint">Your list is empty. Spin the wheel and save a movie for later.</p> : <div className="saved-grid">{savedMovies.map((row) => <article className="saved-card" key={row.id}>{row.poster_path ? <img src={`https://image.tmdb.org/t/p/w342${row.poster_path}`} alt={`${row.title} poster`} /> : <div className="saved-poster-missing">No poster</div>}<div className="saved-copy"><strong>{row.title}</strong><small>{row.watched ? 'Watched' : 'Not watched'}</small><div className="saved-actions"><button type="button" onClick={() => updateSavedMovie(row, 'toggle')}>{row.watched ? 'Mark unwatched' : 'Mark watched'}</button><button type="button" onClick={() => updateSavedMovie(row, 'remove')}>Remove</button></div></div></article>)}</div>}
+          {!session?.user ? <p className="account-hint">Log in to save, view, and manage your movies.</p> : savedStatus === 'idle' ? <p className="account-hint" role="status">Loading your Binge List…</p> : savedStatus === 'error' ? <p className="inline-error" role="alert">{savedError}</p> : savedMovies.length === 0 ? <p className="account-hint">Your list is empty. Spin the wheel and save a movie for later.</p> : <div className="saved-grid">{savedMovies.map((row) => <article className="saved-card" key={row.id}>{row.poster_path ? <img src={`https://image.tmdb.org/t/p/w342${row.poster_path}`} alt={`${row.title} poster`} /> : <div className="saved-poster-missing">No poster</div>}<div className="saved-copy"><strong>{row.title}</strong><small>{row.watched ? 'Watched' : 'Not watched'}</small><div className="saved-actions"><button type="button" onClick={() => updateSavedMovie(row, 'toggle')}>{row.watched ? 'Mark unwatched' : 'Mark watched'}</button><button type="button" onClick={() => updateSavedMovie(row, 'remove')}>Remove</button></div></div></article>)}</div>}
+          {removedRow && <p className="undo-toast" role="status">Removed <strong>{removedRow.title}</strong>.<button type="button" onClick={undoRemove}>Undo</button></p>}
           {savedError && <p className="inline-error" role="alert">{savedError}</p>}
         </section>
 
@@ -257,12 +276,12 @@ function HowItWorks() {
   </main>
 }
 
-function MovieCard({ movie, mood, pick, total, onSave, saveLabel, saveDisabled }) {
+function MovieCard({ movie, mood, pick, total, onSave, loginToSave, saveLabel, saveDisabled }) {
   const poster = movie.poster_path ? `https://image.tmdb.org/t/p/w500${movie.poster_path}` : null
   const year = movie.release_date?.slice(0, 4)
   return <article className="movie-result" style={{ animationDelay: `${(pick - 1) * 0.12}s` }}><div className="result-label"><span>✦</span> PICK {pick} OF {total} <i /> <small>{mood.title}</small></div><div className="movie-card">
     <div className="poster-wrap">{poster ? <img src={poster} alt={`${movie.title} poster`} /> : <div className="poster-missing"><span>✳</span><small>POSTER UNAVAILABLE</small></div>}<span className="poster-stamp">YOUR<br />PICK</span></div>
-    <div className="movie-info"><div className="movie-kicker">{year || 'A GREAT PICK'} <i /> {movie.media_type === 'tv' ? 'TV SERIES' : 'FEATURE FILM'}</div><h3>{movie.title || 'Untitled movie'}</h3><div className="movie-meta"><span className="rating"><b>★</b> {movie.vote_average ? movie.vote_average.toFixed(1) : '—'} <small>/ 10</small></span><i /> <span>{movie.runtime ? `${movie.runtime} min${movie.media_type === 'tv' ? ' / episode' : ''}` : 'Runtime unavailable'}</span></div><p className="overview">{movie.overview || 'No overview is available for this film. The perfect excuse to go in completely blind.'}</p><div className="movie-actions">{getTrailerUrl(movie) ? <a className="primary-action" href={getTrailerUrl(movie)} target="_blank" rel="noreferrer"><span>▶</span> Watch trailer</a> : <span className="unavailable-action">Trailer unavailable</span>}<a className="secondary-action" href={getWatchUrl(movie)} target="_blank" rel="noreferrer">Where to watch <span>↗</span></a><button className="save-action" type="button" onClick={onSave} disabled={saveDisabled}>{saveLabel}</button></div></div>
+    <div className="movie-info"><div className="movie-kicker">{year || 'A GREAT PICK'} <i /> {movie.media_type === 'tv' ? 'TV SERIES' : 'FEATURE FILM'}</div><h3>{movie.title || 'Untitled movie'}</h3><div className="movie-meta"><span className="rating"><b>★</b> {movie.vote_average ? movie.vote_average.toFixed(1) : '—'} <small>/ 10</small></span><i /> <span>{movie.runtime ? `${movie.runtime} min${movie.media_type === 'tv' ? ' / episode' : ''}` : 'Runtime unavailable'}</span></div><p className="overview">{movie.overview || 'No overview is available for this film. The perfect excuse to go in completely blind.'}</p><div className="movie-actions">{getTrailerUrl(movie) ? <a className="primary-action" href={getTrailerUrl(movie)} target="_blank" rel="noreferrer"><span>▶</span> Watch trailer</a> : <span className="unavailable-action">Trailer unavailable</span>}<a className="secondary-action" href={getWatchUrl(movie)} target="_blank" rel="noreferrer">Where to watch <span>↗</span></a>{loginToSave ? <a className="save-action" href="#account">Log in to save</a> : <button className="save-action" type="button" onClick={onSave} disabled={saveDisabled}>{saveLabel}</button>}</div></div>
   </div></article>
 }
 
